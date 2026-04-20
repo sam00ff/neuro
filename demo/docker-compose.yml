@@ -1,0 +1,39 @@
+version: "3.9"
+
+services:
+  neurolinked:
+    build:
+      context: ..
+      dockerfile: demo/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      NLKD_DEMO_MODE: "1"
+      NLKD_DEMO_IDLE_TIMEOUT_SEC: "900"
+      NLKD_DEMO_RATE_LIMIT_PER_MIN: "30"
+    volumes:
+      # Demo tenants live in a separate volume that gets nuked on restart
+      - demo_brain_state:/app/brain_state
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/claude/summary"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Optional: reverse proxy with HTTPS + rate limiting via Caddy
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on:
+      - neurolinked
+    restart: unless-stopped
+
+volumes:
+  demo_brain_state:
+  caddy_data:
